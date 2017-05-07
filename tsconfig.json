@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es5",
+    "sourceMap": true,
+    "allowJs": true,
+    "outDir": "dist",
+    "checkJs": true
+  },
+  "files": [
+    "input-mask.js"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
