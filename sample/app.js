@@ -1,6 +1,7 @@
 inputMask.create("integer", document.querySelector(".integer input"), {
-    min: 5,
-    max: 10,
+    min: 500,
+    max: 750,
+    maxlength: 3,
 });
 
 inputMask.create("double", document.querySelector(".double input"));

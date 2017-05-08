@@ -364,6 +364,9 @@ function inputMaskNumber(input, options) {
         if (isNaN(num)) {
             return false;
         }
+        if (options.hasOwnProperty("maxlength") && value.length > options.maxlength) {
+            return false;
+        }
         return true;
     }
     function clearInvalidIndication() {
@@ -405,11 +408,11 @@ function inputMaskNumber(input, options) {
         }
     });
 }
-//# sourceMappingURL=number.js.map
 
 function inputMaskDouble(input, options) {
     inputMaskNumber(input, options);
 }
+//# sourceMappingURL=double.js.map
 
 function inputMaskInteger(input, options) {
     options = options || {};

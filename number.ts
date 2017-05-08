@@ -17,6 +17,10 @@ export function inputMaskNumber(input, options) {
             return false;
         }
 
+        if(options.hasOwnProperty("maxlength") && value.length > options.maxlength) {
+            return false;
+        }
+
         return true;
     }
 
