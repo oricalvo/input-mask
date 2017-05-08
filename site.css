@@ -1,0 +1,19 @@
+html {
+    font-size: 1.5em;
+}
+
+div {
+    margin-bottom: 1em;
+}
+
+input {
+    font-size: inherit;
+    outline: none;
+    border: 1px solid rgb(200,200,200);
+    padding: 0.35em;
+    font-family: Consolas;
+}
+
+input.invalid {
+    background-color: red;
+}

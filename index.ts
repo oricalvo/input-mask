@@ -1,10 +1,10 @@
 import {InputMaskTime} from "./time";
 import {InputMaskDate} from "./date";
 import {InputMaskTimeSpan} from "./timeSpan";
-import {inputMaskInteger} from "./integer";
 import {inputMaskDouble} from "./double";
+import {inputMaskInteger} from "./integer";
 
-export function inputMask(element, type) {
+export function create(type, element, options) {
     if(type == "time") {
         new InputMaskTime(element);
     }
@@ -15,7 +15,7 @@ export function inputMask(element, type) {
         new InputMaskTimeSpan(element);
     }
     else if(type == "integer") {
-        inputMaskInteger(element);
+        inputMaskInteger(element, options);
     }
     else if(type == "double") {
         inputMaskDouble(element);

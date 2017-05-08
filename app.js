@@ -1,10 +1,12 @@
-//inputMaskTime(document.querySelector(".time input"));
-inputMaskInteger(document.querySelector(".integer input"));
-inputMaskDouble(document.querySelector(".double input"));
-//inputMaskDate(document.querySelector(".date input"));
-//inputMaskTimeSpan(document.querySelector(".time-span input"));
+inputMask.create("integer", document.querySelector(".integer input"), {
+    min: 5,
+    max: 10,
+});
 
-new InputMaskDate(document.querySelector(".date input"));
-new InputMaskTime(document.querySelector(".time input"));
-new InputMaskTimeSpan(document.querySelector(".time-span input"));
+inputMask.create("double", document.querySelector(".double input"));
 
+inputMask.create("date", document.querySelector(".date input"));
+
+inputMask.create("time", document.querySelector(".time input"));
+
+inputMask.create("timeSpan", document.querySelector(".time-span input"));

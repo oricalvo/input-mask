@@ -1,14 +1,17 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "es2015",
     "target": "es5",
     "sourceMap": true,
     "allowJs": true,
     "outDir": "dist",
-    "checkJs": true
+    "checkJs": true,
+    "noEmitHelpers": true,
+    "moduleResolution": "node",
+    "lib": ["es6", "dom"]
   },
   "files": [
-    "input-mask.js"
+    "index.ts"
   ],
   "exclude": [
     "node_modules"

@@ -1,14 +1,27 @@
-import {KEY_BACKSPACE, KEY_LEFT, KEY_RIGHT, parsePattern} from "./common";
-export class InputMaskPattern {
-    constructor(input, pattern) {
+import {
+    cloneBuf, cloneFields, Fields, findFieldByPos, isValidDate, KEY_BACKSPACE, KEY_LEFT, KEY_RIGHT,
+    parsePattern
+} from "./common";
+
+export abstract class InputMaskBase {
+    input: HTMLInputElement;
+    pos: number;
+    pattern: string;
+    max_pos: number;
+    buf: any[];
+    fields: Fields;
+    options: any;
+
+    constructor(input, pattern, options?) {
         this.input = input;
         this.pos = 0;
+        this.options = options || {};
 
         const info = parsePattern(pattern);
         this.pattern = info.pattern;
-        this.max_pos = this.pattern.length;
+        this.max_pos = this.pattern && this.pattern.length;
         this.fields = info.fields;
-        this.buf = this.pattern.split("");
+        this.buf = info.buf;
 
         this.input.value = this.pattern;
         this.input.addEventListener("keydown", this.onKeyDown.bind(this));
@@ -17,7 +30,8 @@ export class InputMaskPattern {
     }
 
     isSeperator(pos) {
-        for (let field of this.fields) {
+        for (let key in this.fields) {
+            const field = this.fields[key];
             if (pos >= field.begin && pos < field.end) {
                 return false;
             }
@@ -27,8 +41,9 @@ export class InputMaskPattern {
     }
 
     onKeyDown(e) {
-        var cmd = null;
-        var newBuf = null;
+        let cmd = null;
+        let newBuf = null;
+        let newFields = null;
 
         if (e.which == KEY_RIGHT) {
             cmd = this.next;
@@ -37,8 +52,8 @@ export class InputMaskPattern {
             cmd = this.prev;
         }
         else if (e.which == KEY_BACKSPACE) {
-            newBuf = this.buf.concat([]);
-            newBuf[this.pos] = this.pattern[this.pos];
+            newBuf = cloneBuf(this.buf, this.pos, undefined);
+            newFields = cloneFields(this.fields, this.pos, undefined);
             cmd = this.prev;
         }
 
@@ -47,7 +62,13 @@ export class InputMaskPattern {
 
             setTimeout(() => {
                 if (newBuf) {
-                    this.update(newBuf);
+                    //
+                    //  Call validate and ignore return value
+                    //  We allow backspace for invalid value
+                    //  We still need to call "validate" since it may change the input apearance (CSS)
+                    //
+                    this.validate(e.which, newBuf, newFields);
+                    this.update(newBuf, newFields);
                 }
 
                 if(cmd) {
@@ -57,36 +78,36 @@ export class InputMaskPattern {
         }
     }
 
+    canType(pos) {
+        if(this.pattern && this.pos == this.max_pos) {
+            return false;
+        }
+
+        return true;
+    }
+
     onKeyPress(e) {
-        if (this.pos == this.max_pos) {
+        if (!this.canType(this.pos)) {
             e.preventDefault();
             return;
         }
 
         const ch = String.fromCharCode(e.which);
-        var newBuf = this.buf.concat([]);
-        newBuf[this.pos] = ch;
+        const newBuf = cloneBuf(this.buf, this.pos, ch);
+        const newFields = cloneFields(this.fields, this.pos, ch);
 
         e.preventDefault();
 
-        var fields = {};
-        for(let field of this.fields) {
-            const value = newBuf.slice(field.begin, field.end);
-            fields[field.name] = value.join("");
-        }
-
-        if (this.validate(ch, newBuf.join(""), fields)) {
+        if (this.validate(ch.charCodeAt(0), newBuf, newFields)) {
             setTimeout(() => {
-                this.update(newBuf);
+                this.update(newBuf, newFields);
 
                 this.next();
             }, 0);
         }
     }
 
-    validate(ch, value, fields) {
-        return true;
-    }
+    abstract validate(keyCode: number, buf: string[], fields: Fields);
 
     onFocus(e) {
         setTimeout(() => {
@@ -94,9 +115,19 @@ export class InputMaskPattern {
         }, 0);
     }
 
-    update(newBuf) {
-        this.input.value = newBuf.join("");
+    update(newBuf, fields) {
+        const oldBuf = this.buf;
+
+        const value = newBuf.concat();
+        for(let i=0; i<value.length; i++) {
+            if(!value[i]) {
+                value[i] = this.pattern[i];
+            }
+        }
+
+        this.input.value = value.join("");
         this.buf = newBuf;
+        this.fields = fields;
     }
 
     setSelection() {
@@ -131,5 +162,16 @@ export class InputMaskPattern {
         }
 
         this.setSelection();
+    }
+
+    onChanged() {
+    }
+
+    clearInvalidIndication() {
+        this.input.classList.remove("invalid");
+    }
+
+    setInvalidIndication() {
+        this.input.classList.add("invalid");
     }
 }
