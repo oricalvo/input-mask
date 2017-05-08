@@ -353,7 +353,6 @@ var InputMaskTimeSpan = (function (_super) {
 function inputMaskNumber(input, options) {
     options = options || {};
     function validate(ch, buf, value) {
-        console.log("VALIDATE");
         if (options.noDot && ch == ".") {
             return false;
         }
@@ -392,13 +391,11 @@ function inputMaskNumber(input, options) {
         }
     }
     input.addEventListener("keydown", function (e) {
-        console.log("DOWN");
         setTimeout(function () {
             resetIndication(input.value);
         }, 0);
     });
     input.addEventListener("keypress", function (e) {
-        console.log("UP");
         var ch = String.fromCharCode(e.which);
         var buf = input.value.split("");
         buf.splice(input.selectionStart, 0, ch);
