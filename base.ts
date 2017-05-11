@@ -43,8 +43,6 @@ export abstract class InputMaskBase {
     }
 
     onKeyDown(e) {
-        console.log(e.which);
-
         let cmd = null;
         let newBuf = null;
         let newFields = null;
@@ -126,8 +124,6 @@ export abstract class InputMaskBase {
     abstract validate(keyCode: number, buf: string[], fields: Fields);
 
     onFocus(e) {
-        console.log("onFocus");
-
         setTimeout(() => {
             this.setSelection();
         }, 0);
@@ -153,7 +149,6 @@ export abstract class InputMaskBase {
             this.input.setSelectionRange(this.max_pos, this.max_pos);
         }
         else {
-            console.log(`Selecting ${this.pos} and ${this.pos+1}`);
             this.input.setSelectionRange(this.pos, this.pos + 1);
         }
     }

@@ -1,9 +1,3 @@
-(function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
-	typeof define === 'function' && define.amd ? define(['exports'], factory) :
-	(factory((global.inputMask = global.inputMask || {})));
-}(this, (function (exports) { 'use strict';
-
 var KEY_0 = "0".charCodeAt(0);
 var KEY_9 = "9".charCodeAt(0);
 var KEY_RIGHT = 39;
@@ -472,9 +466,5 @@ function create(type, element, options) {
 }
 //# sourceMappingURL=index.js.map
 
-exports.create = create;
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-})));
-//# sourceMappingURL=input-mask.umd.js.map
+export { create };
+//# sourceMappingURL=input-mask.es6.js.map

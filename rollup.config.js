@@ -11,13 +11,13 @@ export default {
     },
     targets: [
         {
-            dest: "dist/input-mask.umd.js",
+            dest: "sample/input-mask.umd.js",
             moduleName: "inputMask",
             format: 'umd',
             sourceMap: true
         },
         {
-            dest: "dist/input-mask.es6.js",
+            dest: "sample/input-mask.es6.js",
             format: 'es',
             sourceMap: true
         }
