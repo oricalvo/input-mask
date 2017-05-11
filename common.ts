@@ -2,7 +2,10 @@ export const KEY_0 = "0".charCodeAt(0);
 export const KEY_9 = "9".charCodeAt(0);
 export const KEY_RIGHT = 39;
 export const KEY_LEFT = 37;
+export const KEY_UP = 38;
+export const KEY_DOWN = 40;
 export const KEY_BACKSPACE = 8;
+export const KEY_DELETE = 46;
 
 export function isDigit(keyCode: number) {
     return (keyCode >= KEY_0 && keyCode <= KEY_9);

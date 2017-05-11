@@ -1,8 +1,26 @@
-export function inputMaskNumber(input, options) {
-    options = options || {};
+export interface NumberOptions {
+    noDot: boolean;
+    noNegative: boolean;
+    min?: number;
+    max?: number;
+}
+
+export function inputMaskNumber(input, options: NumberOptions) {
+    options = options || {
+        noDot: false,
+        noNegative: false,
+    };
+
+    if(!options.hasOwnProperty("noNegative")) {
+        options.noNegative = false;
+    }
 
     function validate(ch, buf, value) {
         if(options.noDot && ch == ".") {
+            return false;
+        }
+
+        if(options.noNegative && ch=="-") {
             return false;
         }
 
@@ -12,10 +30,6 @@ export function inputMaskNumber(input, options) {
 
         const num = Number(value);
         if (isNaN(num)) {
-            return false;
-        }
-
-        if(options.hasOwnProperty("maxlength") && value.length > options.maxlength) {
             return false;
         }
 

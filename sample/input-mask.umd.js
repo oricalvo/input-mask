@@ -363,7 +363,7 @@ function inputMaskNumber(input, options) {
         if (isNaN(num)) {
             return false;
         }
-        if (options.hasOwnProperty("maxlength") && value.length > options.maxlength) {
+        if (options.hasOwnProperty("maxlength") && value.length > options.maxLength) {
             return false;
         }
         return true;

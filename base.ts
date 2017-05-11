@@ -1,5 +1,6 @@
 import {
-    cloneBuf, cloneFields, Fields, findFieldByPos, isValidDate, KEY_BACKSPACE, KEY_LEFT, KEY_RIGHT,
+    cloneBuf, cloneFields, Fields, findFieldByPos, isValidDate, KEY_BACKSPACE, KEY_DELETE, KEY_DOWN, KEY_LEFT,
+    KEY_RIGHT, KEY_UP,
     parsePattern
 } from "./common";
 
@@ -27,6 +28,7 @@ export abstract class InputMaskBase {
         this.input.addEventListener("keydown", this.onKeyDown.bind(this));
         this.input.addEventListener("keypress", this.onKeyPress.bind(this));
         this.input.addEventListener("focus", this.onFocus.bind(this));
+        this.input.addEventListener("mousedown", this.onMouseDown.bind(this));
     }
 
     isSeperator(pos) {
@@ -41,6 +43,8 @@ export abstract class InputMaskBase {
     }
 
     onKeyDown(e) {
+        console.log(e.which);
+
         let cmd = null;
         let newBuf = null;
         let newFields = null;
@@ -55,6 +59,18 @@ export abstract class InputMaskBase {
             newBuf = cloneBuf(this.buf, this.pos, undefined);
             newFields = cloneFields(this.fields, this.pos, undefined);
             cmd = this.prev;
+        }
+        else if (e.which == KEY_DELETE) {
+            e.preventDefault();
+            return;
+        }
+        else if (e.which == KEY_DOWN) {
+            e.preventDefault();
+            return;
+        }
+        else if (e.which == KEY_UP) {
+            e.preventDefault();
+            return;
         }
 
         if (cmd || newBuf) {
@@ -110,6 +126,8 @@ export abstract class InputMaskBase {
     abstract validate(keyCode: number, buf: string[], fields: Fields);
 
     onFocus(e) {
+        console.log("onFocus");
+
         setTimeout(() => {
             this.setSelection();
         }, 0);
@@ -135,6 +153,7 @@ export abstract class InputMaskBase {
             this.input.setSelectionRange(this.max_pos, this.max_pos);
         }
         else {
+            console.log(`Selecting ${this.pos} and ${this.pos+1}`);
             this.input.setSelectionRange(this.pos, this.pos + 1);
         }
     }
@@ -173,5 +192,15 @@ export abstract class InputMaskBase {
 
     setInvalidIndication() {
         this.input.classList.add("invalid");
+    }
+
+    onMouseDown(e) {
+        e.preventDefault();
+
+        e.target.focus();
+
+        setTimeout(() => {
+            this.setSelection();
+        }, 0);
     }
 }

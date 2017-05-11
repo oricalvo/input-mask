@@ -37,7 +37,7 @@ export class InputMaskDate extends InputMaskBase {
         if (yyyy[0] && yyyy[1] && yyyy[2] && yyyy[3]) {
             ++completed;
             var year = parseInt(yyyy.join(""));
-            if (isNaN(year) || year < 1900 || year > 2200) {
+            if (isNaN(year)) {
                 return false;
             }
         }
