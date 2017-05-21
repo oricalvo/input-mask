@@ -4,7 +4,10 @@ exports.KEY_0 = "0".charCodeAt(0);
 exports.KEY_9 = "9".charCodeAt(0);
 exports.KEY_RIGHT = 39;
 exports.KEY_LEFT = 37;
+exports.KEY_UP = 38;
+exports.KEY_DOWN = 40;
 exports.KEY_BACKSPACE = 8;
+exports.KEY_DELETE = 46;
 function isDigit(keyCode) {
     return (keyCode >= exports.KEY_0 && keyCode <= exports.KEY_9);
 }

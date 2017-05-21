@@ -14,7 +14,24 @@ inputMask.create("double", document.querySelector(".double input"), {
 
 inputMask.create("date", document.querySelector(".date input"));
 
-inputMask.create("time", document.querySelector(".time input"));
+const time = inputMask.create("time", document.querySelector(".time input"));
+
+let btn = document.querySelector(".time button.get-value");
+if(btn) {
+    btn.addEventListener("click", function() {
+        console.log(time.getValue());
+    });
+}
+
+btn = document.querySelector(".time button.set-value");
+if(btn) {
+    btn.addEventListener("click", function() {
+        time.setValue(new Date());
+    });
+}
 
 inputMask.create("timeSpan", document.querySelector(".time-span input"));
+
+inputMask.create("signedTimeSpan", document.querySelector(".signed-time-span input"));
+
 

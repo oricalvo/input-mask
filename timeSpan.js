@@ -14,23 +14,34 @@ var base_1 = require("./base");
 var common_1 = require("./common");
 var InputMaskTimeSpan = (function (_super) {
     __extends(InputMaskTimeSpan, _super);
-    function InputMaskTimeSpan(input) {
-        return _super.call(this, input, "{d}.{hh}:{mm}") || this;
+    function InputMaskTimeSpan(input, options) {
+        var _this = _super.call(this, input, "{d}.{hh}:{mm}") || this;
+        _this.options = options || {
+            allowSign: false
+        };
+        return _this;
     }
-    InputMaskTimeSpan.prototype.validate = function (ch, value, fields) {
-        if (!common_1.isDigitKeyCode(ch.charCodeAt(0))) {
+    InputMaskTimeSpan.prototype.validate = function (keyCode, buf, fields) {
+        var ch = String.fromCharCode(keyCode);
+        if (!common_1.isFunction(keyCode) &&
+            !common_1.isDigit(keyCode) &&
+            ch != "-" &&
+            ch != "+") {
             return false;
         }
-        var hh = fields.hh.value;
-        if (hh[0] != "h" && hh[1] != "h") {
-            var num = parseInt(hh.value);
+        if (!this.options.allowSign && (ch == "-" || ch != "+")) {
+            return false;
+        }
+        var hh = fields.hh.buf;
+        if (hh[0] && hh[1]) {
+            var num = parseInt(hh[0] + hh[1]);
             if (isNaN(num) || num < 0 || num > 23) {
                 return false;
             }
         }
-        var mm = fields.mm.value;
-        if (mm[0] != "m" && mm[1] != "m") {
-            var num = parseInt(mm.value);
+        var mm = fields.mm.buf;
+        if (mm[0] && mm[1]) {
+            var num = parseInt(mm[0] + mm[1]);
             if (isNaN(num) || num < 0 || num > 59) {
                 return false;
             }

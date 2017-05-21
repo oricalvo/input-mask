@@ -1,13 +1,26 @@
 import {InputMaskBase} from "./base";
 import {Fields, isDigit, isFunction} from "./common";
 
+export interface TimeSpanOptions {
+    min?: string;
+    max?: string;
+}
+
 export class InputMaskTimeSpan extends InputMaskBase {
-    constructor(input) {
+    options: TimeSpanOptions;
+
+    constructor(input, options?: TimeSpanOptions) {
         super(input, "{d}.{hh}:{mm}");
+
+        this.options = options || {};
     }
 
     validate(keyCode: number, buf: string[], fields: Fields) {
-        if(!isFunction(keyCode) && !isDigit(keyCode)) {
+        var ch = String.fromCharCode(keyCode);
+        if(!isFunction(keyCode) &&
+            !isDigit(keyCode) &&
+            ch!="-" &&
+            ch!="+") {
             return false;
         }
 

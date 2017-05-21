@@ -1,5 +1,7 @@
 import {
-    cloneBuf, cloneFields, Fields, findFieldByPos, isValidDate, KEY_BACKSPACE, KEY_DELETE, KEY_DOWN, KEY_LEFT,
+    cloneBuf, cloneFieldsByPos, copyArray, Fields, FieldsOptions, findFieldByPos, isValidDate, KEY_BACKSPACE, KEY_DELETE,
+    KEY_DOWN,
+    KEY_LEFT,
     KEY_RIGHT, KEY_UP,
     parsePattern
 } from "./common";
@@ -11,12 +13,10 @@ export abstract class InputMaskBase {
     max_pos: number;
     buf: any[];
     fields: Fields;
-    options: any;
 
-    constructor(input, pattern, options?) {
+    constructor(input, pattern, fieldsOptions?: FieldsOptions) {
         this.input = input;
         this.pos = 0;
-        this.options = options || {};
 
         const info = parsePattern(pattern);
         this.pattern = info.pattern;
@@ -24,11 +24,25 @@ export abstract class InputMaskBase {
         this.fields = info.fields;
         this.buf = info.buf;
 
-        this.input.value = this.pattern;
         this.input.addEventListener("keydown", this.onKeyDown.bind(this));
         this.input.addEventListener("keypress", this.onKeyPress.bind(this));
         this.input.addEventListener("focus", this.onFocus.bind(this));
         this.input.addEventListener("mousedown", this.onMouseDown.bind(this));
+
+        for(let key in this.fields) {
+            const field = this.fields[key];
+            field.options = (fieldsOptions && fieldsOptions[key]) || {};
+        }
+
+        for(let key in this.fields) {
+            const field = this.fields[key];
+            if(field.options.defValue) {
+                field.buf = field.options.defValue.substring(0, field.len).split("");
+                copyArray(field.buf, 0, field.len, this.buf, field.begin);
+            }
+        }
+
+        this.input.value = this.pattern;
     }
 
     isSeperator(pos) {
@@ -43,6 +57,8 @@ export abstract class InputMaskBase {
     }
 
     onKeyDown(e) {
+        console.log("keyDown", e.keyCode);
+
         let cmd = null;
         let newBuf = null;
         let newFields = null;
@@ -55,7 +71,7 @@ export abstract class InputMaskBase {
         }
         else if (e.which == KEY_BACKSPACE) {
             newBuf = cloneBuf(this.buf, this.pos, undefined);
-            newFields = cloneFields(this.fields, this.pos, undefined);
+            newFields = cloneFieldsByPos(this.fields, this.pos, undefined);
             cmd = this.prev;
         }
         else if (e.which == KEY_DELETE) {
@@ -101,18 +117,24 @@ export abstract class InputMaskBase {
     }
 
     onKeyPress(e) {
+        console.log("keyPress", e.key, e.keyCode, e.charCode);
+
         if (!this.canType(this.pos)) {
             e.preventDefault();
             return;
         }
 
-        const ch = String.fromCharCode(e.which);
-        const newBuf = cloneBuf(this.buf, this.pos, ch);
-        const newFields = cloneFields(this.fields, this.pos, ch);
-
         e.preventDefault();
 
-        if (this.validate(ch.charCodeAt(0), newBuf, newFields)) {
+        this.internalPressKey(e.keyCode);
+    }
+
+    internalPressKey(keyCode) {
+        const ch = String.fromCharCode(keyCode);
+        const newBuf = cloneBuf(this.buf, this.pos, ch);
+        const newFields = cloneFieldsByPos(this.fields, this.pos, ch);
+
+        if (this.validate(keyCode, newBuf, newFields)) {
             setTimeout(() => {
                 this.update(newBuf, newFields);
 
@@ -142,6 +164,17 @@ export abstract class InputMaskBase {
         this.input.value = value.join("");
         this.buf = newBuf;
         this.fields = fields;
+    }
+
+    updateByFields(newFields: Fields) {
+        const newBuf = this.buf.concat([]);
+        for(let key in newFields) {
+            const field = newFields[key];
+
+            copyArray(field.buf, 0, field.buf.length, newBuf, field.begin);
+        }
+
+        this.update(newBuf, newFields);
     }
 
     setSelection() {

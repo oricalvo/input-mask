@@ -1,3 +1,4 @@
+import {TimeSpanOptions} from "./timeSpan";
 export const KEY_0 = "0".charCodeAt(0);
 export const KEY_9 = "9".charCodeAt(0);
 export const KEY_RIGHT = 39;
@@ -9,6 +10,11 @@ export const KEY_DELETE = 46;
 
 export function isDigit(keyCode: number) {
     return (keyCode >= KEY_0 && keyCode <= KEY_9);
+}
+
+export function isSign(keyCode: number) {
+    const ch = String.fromCharCode(keyCode);
+    return ch == "+" || ch == "-";
 }
 
 export function isFunction(keyCode: number) {
@@ -29,6 +35,12 @@ export function isValidDate(day, month, year) {
     return true;
 }
 
+export interface FieldOptions {
+    defValue?: string;
+}
+
+export type FieldsOptions = {[key: string]: FieldOptions};
+
 export interface Field {
     name: string;
     buf: any[];
@@ -36,6 +48,8 @@ export interface Field {
     chs: number;
     begin: number;
     end: number;
+    len: number;
+    options: FieldOptions;
 }
 
 export type Fields = {[key: string]: Field};
@@ -67,13 +81,18 @@ export function parsePattern(pattern) {
             }
 
             var name = pattern.substring(begin + 1, end);
-            var field = {
+            const b = begin - fix;
+            const e = end - 1 - fix;
+            const len = e - b;
+            var field: Field = {
                 name: name,
                 buf: [],
                 full: false,
                 chs: 0,
-                begin: begin - fix,
-                end: end - 1 - fix,
+                begin: b,
+                end: e,
+                len: len,
+                options: null,
             };
 
             if (fields.hasOwnProperty(field.name)) {
@@ -99,7 +118,9 @@ export function parsePattern(pattern) {
 
 export function cloneBuf(buf: string[], pos: number, ch: string) {
     const clone = buf.concat([]);
-    clone[pos] = ch;
+    if(pos!==undefined) {
+        clone[pos] = ch;
+    }
     return clone;
 }
 
@@ -113,7 +134,18 @@ export function cloneField(field: Field, pos: number, ch: string) {
     return clone;
 }
 
-export function cloneFields(fields: Fields, pos: number, ch: string) {
+export function cloneFields(fields: Fields) {
+    const newFields: Fields = {};
+
+    for(let key in fields) {
+        const field = fields[key];
+        newFields[key] = cloneField(field, undefined, undefined);
+    }
+
+    return newFields;
+}
+
+export function cloneFieldsByPos(fields: Fields, pos: number, ch: string) {
     let field = findFieldByPos(fields, pos);
     if(field) {
         field = cloneField(field, pos - field.begin, ch)
@@ -135,4 +167,20 @@ export function findFieldByPos(fields: Fields, pos: number) {
     }
 
     return null;
+}
+
+export function validateTimeSpanRange(value: string, options: TimeSpanOptions) {
+    if(options.min && value < options.min) {
+            return false;
+    }
+
+    if(options.max && value > options.max) {
+        return false;
+    }
+}
+
+export function copyArray(source, begin, end, dest, destBegin) {
+    for(let i=begin; i<end; i++) {
+        dest[destBegin+i-begin] = source[i];
+    }
 }

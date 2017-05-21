@@ -9,6 +9,10 @@ var KEY_DELETE = 46;
 function isDigit(keyCode) {
     return (keyCode >= KEY_0 && keyCode <= KEY_9);
 }
+function isSign(keyCode) {
+    var ch = String.fromCharCode(keyCode);
+    return ch == "+" || ch == "-";
+}
 function isFunction(keyCode) {
     return keyCode == KEY_BACKSPACE || keyCode == KEY_LEFT || keyCode == KEY_RIGHT;
 }
@@ -44,13 +48,18 @@ function parsePattern(pattern) {
                 buf.push(undefined);
             }
             var name = pattern.substring(begin + 1, end);
+            var b = begin - fix;
+            var e = end - 1 - fix;
+            var len = e - b;
             var field = {
                 name: name,
                 buf: [],
                 full: false,
                 chs: 0,
-                begin: begin - fix,
-                end: end - 1 - fix,
+                begin: b,
+                end: e,
+                len: len,
+                options: null,
             };
             if (fields.hasOwnProperty(field.name)) {
                 throw new Error("Found two fields field with the same name: " + field.name);
@@ -69,7 +78,9 @@ function parsePattern(pattern) {
 }
 function cloneBuf(buf, pos, ch) {
     var clone = buf.concat([]);
-    clone[pos] = ch;
+    if (pos !== undefined) {
+        clone[pos] = ch;
+    }
     return clone;
 }
 function cloneField(field, pos, ch) {
@@ -79,7 +90,15 @@ function cloneField(field, pos, ch) {
     clone[pos] = ch;
     return clone;
 }
-function cloneFields(fields, pos, ch) {
+function cloneFields(fields) {
+    var newFields = {};
+    for (var key in fields) {
+        var field = fields[key];
+        newFields[key] = cloneField(field, undefined, undefined);
+    }
+    return newFields;
+}
+function cloneFieldsByPos(fields, pos, ch) {
     var field = findFieldByPos(fields, pos);
     if (field) {
         field = cloneField(field, pos - field.begin, ch);
@@ -99,23 +118,46 @@ function findFieldByPos(fields, pos) {
     }
     return null;
 }
+function validateTimeSpanRange(value, options) {
+    if (options.min && value < options.min) {
+        return false;
+    }
+    if (options.max && value > options.max) {
+        return false;
+    }
+}
+function copyArray(source, begin, end, dest, destBegin) {
+    for (var i = begin; i < end; i++) {
+        dest[destBegin + i - begin] = source[i];
+    }
+}
 //# sourceMappingURL=common.js.map
 
 var InputMaskBase = (function () {
-    function InputMaskBase(input, pattern, options) {
+    function InputMaskBase(input, pattern, fieldsOptions) {
         this.input = input;
         this.pos = 0;
-        this.options = options || {};
         var info = parsePattern(pattern);
         this.pattern = info.pattern;
         this.max_pos = this.pattern && this.pattern.length;
         this.fields = info.fields;
         this.buf = info.buf;
-        this.input.value = this.pattern;
         this.input.addEventListener("keydown", this.onKeyDown.bind(this));
         this.input.addEventListener("keypress", this.onKeyPress.bind(this));
         this.input.addEventListener("focus", this.onFocus.bind(this));
         this.input.addEventListener("mousedown", this.onMouseDown.bind(this));
+        for (var key in this.fields) {
+            var field = this.fields[key];
+            field.options = (fieldsOptions && fieldsOptions[key]) || {};
+        }
+        for (var key in this.fields) {
+            var field = this.fields[key];
+            if (field.options.defValue) {
+                field.buf = field.options.defValue.substring(0, field.len).split("");
+                copyArray(field.buf, 0, field.len, this.buf, field.begin);
+            }
+        }
+        this.input.value = this.pattern;
     }
     InputMaskBase.prototype.isSeperator = function (pos) {
         for (var key in this.fields) {
@@ -128,6 +170,7 @@ var InputMaskBase = (function () {
     };
     InputMaskBase.prototype.onKeyDown = function (e) {
         var _this = this;
+        console.log("keyDown", e.keyCode);
         var cmd = null;
         var newBuf = null;
         var newFields = null;
@@ -139,7 +182,7 @@ var InputMaskBase = (function () {
         }
         else if (e.which == KEY_BACKSPACE) {
             newBuf = cloneBuf(this.buf, this.pos, undefined);
-            newFields = cloneFields(this.fields, this.pos, undefined);
+            newFields = cloneFieldsByPos(this.fields, this.pos, undefined);
             cmd = this.prev;
         }
         else if (e.which == KEY_DELETE) {
@@ -179,16 +222,20 @@ var InputMaskBase = (function () {
         return true;
     };
     InputMaskBase.prototype.onKeyPress = function (e) {
-        var _this = this;
+        console.log("keyPress", e.key, e.keyCode, e.charCode);
         if (!this.canType(this.pos)) {
             e.preventDefault();
             return;
         }
-        var ch = String.fromCharCode(e.which);
-        var newBuf = cloneBuf(this.buf, this.pos, ch);
-        var newFields = cloneFields(this.fields, this.pos, ch);
         e.preventDefault();
-        if (this.validate(ch.charCodeAt(0), newBuf, newFields)) {
+        this.internalPressKey(e.keyCode);
+    };
+    InputMaskBase.prototype.internalPressKey = function (keyCode) {
+        var _this = this;
+        var ch = String.fromCharCode(keyCode);
+        var newBuf = cloneBuf(this.buf, this.pos, ch);
+        var newFields = cloneFieldsByPos(this.fields, this.pos, ch);
+        if (this.validate(keyCode, newBuf, newFields)) {
             setTimeout(function () {
                 _this.update(newBuf, newFields);
                 _this.next();
@@ -212,6 +259,14 @@ var InputMaskBase = (function () {
         this.input.value = value.join("");
         this.buf = newBuf;
         this.fields = fields;
+    };
+    InputMaskBase.prototype.updateByFields = function (newFields) {
+        var newBuf = this.buf.concat([]);
+        for (var key in newFields) {
+            var field = newFields[key];
+            copyArray(field.buf, 0, field.buf.length, newBuf, field.begin);
+        }
+        this.update(newBuf, newFields);
     };
     InputMaskBase.prototype.setSelection = function () {
         if (this.pos == this.max_pos) {
@@ -261,13 +316,53 @@ var InputMaskBase = (function () {
     return InputMaskBase;
 }());
 
+//# sourceMappingURL=base.js.map
+
 var InputMaskTime = (function (_super) {
     __extends(InputMaskTime, _super);
     function InputMaskTime(input) {
         return _super.call(this, input, "{hh}:{mm}") || this;
     }
+    InputMaskTime.prototype.setValue = function (value) {
+        if (!value) {
+            throw new Error("Invalid date value");
+        }
+        var newFields = cloneFields(this.fields);
+        var hours = value.getHours();
+        newFields.hh.buf = (Math.floor(hours / 10).toString() + (hours % 10).toString()).split("");
+        var minutes = value.getMinutes();
+        newFields.mm.buf = (Math.floor(minutes / 10).toString() + (minutes % 10).toString()).split("");
+        this.updateByFields(newFields);
+    };
+    InputMaskTime.prototype.getValue = function () {
+        var hh = this.fields.hh.buf;
+        if (hh[0] === undefined || hh[1] === undefined) {
+            return undefined;
+        }
+        var hours = parseInt(hh.join(""));
+        if (isNaN(hours)) {
+            return undefined;
+        }
+        var mm = this.fields.mm.buf;
+        if (mm[0] === undefined || mm[1] === undefined) {
+            return undefined;
+        }
+        var minutes = parseInt(mm.join(""));
+        if (isNaN(minutes)) {
+            return undefined;
+        }
+        //
+        //  Only the hours and minutes matter
+        //
+        var now = new Date();
+        var d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+        return d;
+    };
+    InputMaskTime.prototype.isValid = function () {
+        return this.validate(undefined, this.buf, this.fields);
+    };
     InputMaskTime.prototype.validate = function (keyCode, buf, fields) {
-        if (!isFunction(keyCode) && !isDigit(keyCode)) {
+        if (keyCode !== undefined && !isFunction(keyCode) && !isDigit(keyCode)) {
             return false;
         }
         var hh = fields.hh.buf;
@@ -288,8 +383,6 @@ var InputMaskTime = (function (_super) {
     };
     return InputMaskTime;
 }(InputMaskBase));
-
-//# sourceMappingURL=time.js.map
 
 var InputMaskDate = (function (_super) {
     __extends(InputMaskDate, _super);
@@ -338,11 +431,17 @@ var InputMaskDate = (function (_super) {
 
 var InputMaskTimeSpan = (function (_super) {
     __extends(InputMaskTimeSpan, _super);
-    function InputMaskTimeSpan(input) {
-        return _super.call(this, input, "{d}.{hh}:{mm}") || this;
+    function InputMaskTimeSpan(input, options) {
+        var _this = _super.call(this, input, "{d}.{hh}:{mm}") || this;
+        _this.options = options || {};
+        return _this;
     }
     InputMaskTimeSpan.prototype.validate = function (keyCode, buf, fields) {
-        if (!isFunction(keyCode) && !isDigit(keyCode)) {
+        var ch = String.fromCharCode(keyCode);
+        if (!isFunction(keyCode) &&
+            !isDigit(keyCode) &&
+            ch != "-" &&
+            ch != "+") {
             return false;
         }
         var hh = fields.hh.buf;
@@ -444,21 +543,81 @@ function inputMaskInteger(input, options) {
 }
 //# sourceMappingURL=integer.js.map
 
+var InputMaskSignedTimeSpan = (function (_super) {
+    __extends(InputMaskSignedTimeSpan, _super);
+    function InputMaskSignedTimeSpan(input, options) {
+        var _this = _super.call(this, input, "{s}{d}.{hh}:{mm}", {
+            "s": {
+                defValue: "+",
+            }
+        }) || this;
+        _this.options = options || {};
+        return _this;
+    }
+    InputMaskSignedTimeSpan.prototype.validate = function (keyCode, buf, fields) {
+        var ch = String.fromCharCode(keyCode);
+        if (this.pos == 0 && !isSign(keyCode)) {
+            return false;
+        }
+        if (this.pos != 0 && isSign(keyCode)) {
+            return false;
+        }
+        if (this.pos != 0 &&
+            !isSign(keyCode) &&
+            !isFunction(keyCode) &&
+            !isDigit(keyCode)) {
+            return false;
+        }
+        var fullFields = 0;
+        var d = fields.d.buf;
+        if (d[0]) {
+            ++fullFields;
+        }
+        var hh = fields.hh.buf;
+        if (hh[0] && hh[1]) {
+            ++fullFields;
+            var num = parseInt(hh[0] + hh[1]);
+            if (isNaN(num) || num < 0 || num > 23) {
+                return false;
+            }
+        }
+        var mm = fields.mm.buf;
+        if (mm[0] && mm[1]) {
+            ++fullFields;
+            var num = parseInt(mm[0] + mm[1]);
+            if (isNaN(num) || num < 0 || num > 59) {
+                return false;
+            }
+        }
+        var str = buf.join("");
+        if (fullFields == 3 && !validateTimeSpanRange(str, this.options)) {
+            return false;
+        }
+        return true;
+    };
+    return InputMaskSignedTimeSpan;
+}(InputMaskBase));
+
+//# sourceMappingURL=signedTimeSpan.js.map
+
 function create(type, element, options) {
     if (type == "time") {
-        new InputMaskTime(element);
+        return new InputMaskTime(element);
     }
     else if (type == "date") {
-        new InputMaskDate(element);
+        return new InputMaskDate(element);
     }
     else if (type == "timeSpan") {
-        new InputMaskTimeSpan(element);
+        return new InputMaskTimeSpan(element, options);
+    }
+    else if (type == "signedTimeSpan") {
+        return new InputMaskSignedTimeSpan(element, options);
     }
     else if (type == "integer") {
-        inputMaskInteger(element, options);
+        return inputMaskInteger(element, options);
     }
     else if (type == "double") {
-        inputMaskDouble(element);
+        return inputMaskDouble(element);
     }
     else {
         throw new Error("Unknown inputMask type: " + type);
