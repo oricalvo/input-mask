@@ -171,12 +171,14 @@ export function findFieldByPos(fields: Fields, pos: number) {
 
 export function validateTimeSpanRange(value: string, options: TimeSpanOptions) {
     if(options.min && value < options.min) {
-            return false;
+        return false;
     }
 
     if(options.max && value > options.max) {
         return false;
     }
+
+    return true
 }
 
 export function copyArray(source, begin, end, dest, destBegin) {

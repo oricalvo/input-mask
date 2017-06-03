@@ -1,16 +1,60 @@
 import {InputMaskBase} from "./base";
-import {Fields, isDigit, isFunction, isValidDate} from "./common";
+import {cloneFields, Fields, isDigit, isFunction, isValidDate} from "./common";
 
 export class InputMaskDate extends InputMaskBase {
     constructor(input, options?) {
         super(input, "{dd}/{mm}/{yyyy}", options);
     }
 
-    validate(keyCode: number, buf: string[], fields: Fields) {
-        if(!isFunction(keyCode) && !isDigit(keyCode)) {
+    setValue(value: Date) {
+        if(!value) {
+            throw new Error("Invalid date value");
+        }
+
+        const newFields = cloneFields(this.fields);
+
+        const days = value.getDate();
+        newFields.dd.buf = (Math.floor(days / 10).toString() + (days % 10).toString()).split("");
+
+        const month = value.getMonth() + 1;
+        newFields.mm.buf = (Math.floor(month / 10).toString() + (month % 10).toString()).split("");
+
+        const year = value.getFullYear();
+        newFields.yyyy.buf = year.toString().split("").slice(0,4);
+
+        this.updateByFields(newFields);
+    }
+
+    getValue() {
+        const day = parseInt(this.fields.dd.buf.join(""));
+        if(isNaN(day)) {
+            return undefined;
+        }
+
+        const month = parseInt(this.fields.mm.buf.join("")) - 1;
+        if(isNaN(month)) {
+            return undefined;
+        }
+
+        const year = parseInt(this.fields.yyyy.buf.join(""));
+        if(isNaN(year)) {
+            return undefined;
+        }
+
+        const now = new Date();
+        const d = new Date(year, month, day, 0, 0);
+        return d;
+    }
+
+    validateKey(keyCode: number) {
+        if (!isFunction(keyCode) && !isDigit(keyCode)) {
             return false;
         }
 
+        return true;
+    }
+
+    validateBuf(buf: string[], fields: Fields) {
         this.clearInvalidIndication();
 
         var completed = 0;
@@ -47,5 +91,17 @@ export class InputMaskDate extends InputMaskBase {
         }
 
         return true;
+    }
+
+    checkComplete(buf: string[], fields: Fields) {
+        const dd = fields.dd.buf;
+        const mm = fields.mm.buf;
+        const yyyy = fields.yyyy.buf;
+
+        if (dd[0] && dd[1] && mm[0] && mm[1] && yyyy[0] && yyyy[1] && yyyy[2] && yyyy[3]) {
+            return true;
+        }
+
+        return false;
     }
 }

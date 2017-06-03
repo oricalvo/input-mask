@@ -51,15 +51,26 @@ export class InputMaskTime extends InputMaskBase {
         return d;
     }
 
-    isValid() {
-        return this.validate(undefined, this.buf, this.fields);
+    checkComplete(buf: string[], fields: Fields) {
+        var hh = fields.hh.buf;
+        var mm = fields.mm.buf;
+
+        if (hh[0] && hh[1] && mm[0] && mm[1]) {
+            return true;
+        }
+
+        return false;
     }
 
-    validate(keyCode: number, buf: string[], fields: Fields) {
-        if(keyCode!==undefined && !isFunction(keyCode) && !isDigit(keyCode)) {
+    validateKey(keyCode: number) {
+        if (keyCode !== undefined && !isFunction(keyCode) && !isDigit(keyCode)) {
             return false;
         }
 
+        return true;
+    }
+
+    validateBuf(buf: string[], fields: Fields) {
         var hh = fields.hh.buf;
         if (hh[0] && hh[1]) {
             var num = parseInt(hh[0] + hh[1]);

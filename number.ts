@@ -15,7 +15,7 @@ export function inputMaskNumber(input, options: NumberOptions) {
         options.noNegative = false;
     }
 
-    function validate(ch, buf, value) {
+    function allowKey(ch, value) {
         if(options.noDot && ch == ".") {
             return false;
         }
@@ -44,10 +44,15 @@ export function inputMaskNumber(input, options: NumberOptions) {
         input.classList.add("invalid");
     }
 
-    function resetIndication(value: string) {
+    function validate(value: string) {
+        mask.isValid = false;
+        mask.isComplete = false;
+
         clearInvalidIndication();
 
         if(value === "") {
+            mask.isValid = true;
+            mask.isComplete = false;
             return;
         }
 
@@ -58,16 +63,21 @@ export function inputMaskNumber(input, options: NumberOptions) {
 
         if(options && options.hasOwnProperty("min") && num < options.min) {
             setInvalidIndication();
+            return;
         }
 
         if(options && options.hasOwnProperty("max") && num > options.max) {
             setInvalidIndication();
+            return;
         }
+
+        mask.isValid = true;
+        mask.isComplete = true;
     }
 
     input.addEventListener("keydown", function(e) {
         setTimeout(function(){
-            resetIndication(input.value);
+            validate(input.value);
         }, 0);
     });
 
@@ -77,8 +87,45 @@ export function inputMaskNumber(input, options: NumberOptions) {
         buf.splice(input.selectionStart, 0, ch);
         const value = buf.join("");
 
-        if(!validate(ch, buf, value)) {
+        if(!allowKey(ch, value)) {
             e.preventDefault();
         }
+
+        validate(value);
     });
+
+    const mask = {
+        isValid: false,
+
+        isComplete: false,
+
+        getValue: function() {
+            const res = parseFloat(input.value);
+            if(isNaN(res)) {
+                return undefined;
+            }
+
+            return res;
+        },
+
+        setValue: function(num) {
+            this.isValid = false;
+            this.isComplete = false;
+
+            if(isNaN(num*1)) {
+                return;
+            }
+
+            const value = num.toString();
+            if(!allowKey(undefined, value)) {
+                return;
+            }
+
+            input.value = value;
+
+            validate(value);
+        },
+    };
+
+    return mask;
 }

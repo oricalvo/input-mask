@@ -125,6 +125,7 @@ function validateTimeSpanRange(value, options) {
     if (options.max && value > options.max) {
         return false;
     }
+    return true;
 }
 function copyArray(source, begin, end, dest, destBegin) {
     for (var i = begin; i < end; i++) {
@@ -142,6 +143,8 @@ var InputMaskBase = (function () {
         this.max_pos = this.pattern && this.pattern.length;
         this.fields = info.fields;
         this.buf = info.buf;
+        this.isComplete = false;
+        this.isValid = false;
         this.input.addEventListener("keydown", this.onKeyDown.bind(this));
         this.input.addEventListener("keypress", this.onKeyPress.bind(this));
         this.input.addEventListener("focus", this.onFocus.bind(this));
@@ -204,9 +207,9 @@ var InputMaskBase = (function () {
                     //
                     //  Call validate and ignore return value
                     //  We allow backspace for invalid value
-                    //  We still need to call "validate" since it may change the input apearance (CSS)
+                    //  We still need to call "validate" since it may change the input appearance (CSS)
                     //
-                    _this.validate(e.which, newBuf, newFields);
+                    _this.handleValidation(e.which, newBuf, newFields);
                     _this.update(newBuf, newFields);
                 }
                 if (cmd) {
@@ -214,6 +217,20 @@ var InputMaskBase = (function () {
                 }
             }, 0);
         }
+    };
+    InputMaskBase.prototype.handleValidation = function (keyCode, buf, fields) {
+        this.isValid = false;
+        this.isComplete = false;
+        if (keyCode) {
+            if (!this.validateKey(keyCode)) {
+                return false;
+            }
+        }
+        if (!this.validateBuf(buf, fields)) {
+            return false;
+        }
+        this.isValid = true;
+        this.isComplete = this.checkComplete(buf, fields);
     };
     InputMaskBase.prototype.canType = function (pos) {
         if (this.pattern && this.pos == this.max_pos) {
@@ -235,12 +252,14 @@ var InputMaskBase = (function () {
         var ch = String.fromCharCode(keyCode);
         var newBuf = cloneBuf(this.buf, this.pos, ch);
         var newFields = cloneFieldsByPos(this.fields, this.pos, ch);
-        if (this.validate(keyCode, newBuf, newFields)) {
-            setTimeout(function () {
-                _this.update(newBuf, newFields);
-                _this.next();
-            }, 0);
+        this.handleValidation(keyCode, newBuf, newFields);
+        if (!this.isValid) {
+            return;
         }
+        setTimeout(function () {
+            _this.update(newBuf, newFields);
+            _this.next();
+        }, 0);
     };
     InputMaskBase.prototype.onFocus = function (e) {
         var _this = this;
@@ -265,6 +284,10 @@ var InputMaskBase = (function () {
         for (var key in newFields) {
             var field = newFields[key];
             copyArray(field.buf, 0, field.buf.length, newBuf, field.begin);
+        }
+        this.handleValidation(undefined, newBuf, newFields);
+        if (!this.isValid) {
+            return;
         }
         this.update(newBuf, newFields);
     };
@@ -358,13 +381,21 @@ var InputMaskTime = (function (_super) {
         var d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
         return d;
     };
-    InputMaskTime.prototype.isValid = function () {
-        return this.validate(undefined, this.buf, this.fields);
+    InputMaskTime.prototype.checkComplete = function (buf, fields) {
+        var hh = fields.hh.buf;
+        var mm = fields.mm.buf;
+        if (hh[0] && hh[1] && mm[0] && mm[1]) {
+            return true;
+        }
+        return false;
     };
-    InputMaskTime.prototype.validate = function (keyCode, buf, fields) {
+    InputMaskTime.prototype.validateKey = function (keyCode) {
         if (keyCode !== undefined && !isFunction(keyCode) && !isDigit(keyCode)) {
             return false;
         }
+        return true;
+    };
+    InputMaskTime.prototype.validateBuf = function (buf, fields) {
         var hh = fields.hh.buf;
         if (hh[0] && hh[1]) {
             var num = parseInt(hh[0] + hh[1]);
@@ -384,15 +415,50 @@ var InputMaskTime = (function (_super) {
     return InputMaskTime;
 }(InputMaskBase));
 
+//# sourceMappingURL=time.js.map
+
 var InputMaskDate = (function (_super) {
     __extends(InputMaskDate, _super);
     function InputMaskDate(input, options) {
         return _super.call(this, input, "{dd}/{mm}/{yyyy}", options) || this;
     }
-    InputMaskDate.prototype.validate = function (keyCode, buf, fields) {
+    InputMaskDate.prototype.setValue = function (value) {
+        if (!value) {
+            throw new Error("Invalid date value");
+        }
+        var newFields = cloneFields(this.fields);
+        var days = value.getDate();
+        newFields.dd.buf = (Math.floor(days / 10).toString() + (days % 10).toString()).split("");
+        var month = value.getMonth() + 1;
+        newFields.mm.buf = (Math.floor(month / 10).toString() + (month % 10).toString()).split("");
+        var year = value.getFullYear();
+        newFields.yyyy.buf = year.toString().split("").slice(0, 4);
+        this.updateByFields(newFields);
+    };
+    InputMaskDate.prototype.getValue = function () {
+        var day = parseInt(this.fields.dd.buf.join(""));
+        if (isNaN(day)) {
+            return undefined;
+        }
+        var month = parseInt(this.fields.mm.buf.join("")) - 1;
+        if (isNaN(month)) {
+            return undefined;
+        }
+        var year = parseInt(this.fields.yyyy.buf.join(""));
+        if (isNaN(year)) {
+            return undefined;
+        }
+        var now = new Date();
+        var d = new Date(year, month, day, 0, 0);
+        return d;
+    };
+    InputMaskDate.prototype.validateKey = function (keyCode) {
         if (!isFunction(keyCode) && !isDigit(keyCode)) {
             return false;
         }
+        return true;
+    };
+    InputMaskDate.prototype.validateBuf = function (buf, fields) {
         this.clearInvalidIndication();
         var completed = 0;
         var dd = fields.dd.buf;
@@ -424,6 +490,15 @@ var InputMaskDate = (function (_super) {
         }
         return true;
     };
+    InputMaskDate.prototype.checkComplete = function (buf, fields) {
+        var dd = fields.dd.buf;
+        var mm = fields.mm.buf;
+        var yyyy = fields.yyyy.buf;
+        if (dd[0] && dd[1] && mm[0] && mm[1] && yyyy[0] && yyyy[1] && yyyy[2] && yyyy[3]) {
+            return true;
+        }
+        return false;
+    };
     return InputMaskDate;
 }(InputMaskBase));
 
@@ -436,7 +511,29 @@ var InputMaskTimeSpan = (function (_super) {
         _this.options = options || {};
         return _this;
     }
-    InputMaskTimeSpan.prototype.validate = function (keyCode, buf, fields) {
+    InputMaskTimeSpan.prototype.setValue = function (days, hours, minutes) {
+        var newFields = cloneFields(this.fields);
+        newFields.d.buf = (days % 10).toString().split("");
+        newFields.hh.buf = (Math.floor(hours / 10).toString() + (hours % 10).toString()).split("");
+        newFields.mm.buf = (Math.floor(minutes / 10).toString() + (minutes % 10).toString()).split("");
+        this.updateByFields(newFields);
+    };
+    InputMaskTimeSpan.prototype.getValue = function () {
+        var days = parseInt(this.fields.d.buf.join(""));
+        if (isNaN(days)) {
+            return undefined;
+        }
+        var hours = parseInt(this.fields.hh.buf.join(""));
+        if (isNaN(hours)) {
+            return undefined;
+        }
+        var minutes = parseInt(this.fields.mm.buf.join(""));
+        if (isNaN(minutes)) {
+            return undefined;
+        }
+        return { days: days, hours: hours, minutes: minutes };
+    };
+    InputMaskTimeSpan.prototype.validateKey = function (keyCode) {
         var ch = String.fromCharCode(keyCode);
         if (!isFunction(keyCode) &&
             !isDigit(keyCode) &&
@@ -444,13 +541,9 @@ var InputMaskTimeSpan = (function (_super) {
             ch != "+") {
             return false;
         }
-        var hh = fields.hh.buf;
-        if (hh[0] && hh[1]) {
-            var num = parseInt(hh[0] + hh[1]);
-            if (isNaN(num) || num < 0 || num > 23) {
-                return false;
-            }
-        }
+        return true;
+    };
+    InputMaskTimeSpan.prototype.validateBuf = function (buf, fields) {
         var mm = fields.mm.buf;
         if (mm[0] && mm[1]) {
             var num = parseInt(mm[0] + mm[1]);
@@ -459,6 +552,15 @@ var InputMaskTimeSpan = (function (_super) {
             }
         }
         return true;
+    };
+    InputMaskTimeSpan.prototype.checkComplete = function (buf, fields) {
+        var d = fields.d.buf;
+        var hh = fields.hh.buf;
+        var mm = fields.mm.buf;
+        if (d[0] && hh[0] && hh[1] && mm[0] && mm[1]) {
+            return true;
+        }
+        return false;
     };
     return InputMaskTimeSpan;
 }(InputMaskBase));
@@ -473,7 +575,7 @@ function inputMaskNumber(input, options) {
     if (!options.hasOwnProperty("noNegative")) {
         options.noNegative = false;
     }
-    function validate(ch, buf, value) {
+    function allowKey(ch, value) {
         if (options.noDot && ch == ".") {
             return false;
         }
@@ -495,9 +597,13 @@ function inputMaskNumber(input, options) {
     function setInvalidIndication() {
         input.classList.add("invalid");
     }
-    function resetIndication(value) {
+    function validate(value) {
+        mask.isValid = false;
+        mask.isComplete = false;
         clearInvalidIndication();
         if (value === "") {
+            mask.isValid = true;
+            mask.isComplete = false;
             return;
         }
         var num = Number(value);
@@ -506,14 +612,18 @@ function inputMaskNumber(input, options) {
         }
         if (options && options.hasOwnProperty("min") && num < options.min) {
             setInvalidIndication();
+            return;
         }
         if (options && options.hasOwnProperty("max") && num > options.max) {
             setInvalidIndication();
+            return;
         }
+        mask.isValid = true;
+        mask.isComplete = true;
     }
     input.addEventListener("keydown", function (e) {
         setTimeout(function () {
-            resetIndication(input.value);
+            validate(input.value);
         }, 0);
     });
     input.addEventListener("keypress", function (e) {
@@ -521,15 +631,41 @@ function inputMaskNumber(input, options) {
         var buf = input.value.split("");
         buf.splice(input.selectionStart, 0, ch);
         var value = buf.join("");
-        if (!validate(ch, buf, value)) {
+        if (!allowKey(ch, value)) {
             e.preventDefault();
         }
+        validate(value);
     });
+    var mask = {
+        isValid: false,
+        isComplete: false,
+        getValue: function () {
+            var res = parseFloat(input.value);
+            if (isNaN(res)) {
+                return undefined;
+            }
+            return res;
+        },
+        setValue: function (num) {
+            this.isValid = false;
+            this.isComplete = false;
+            if (isNaN(num * 1)) {
+                return;
+            }
+            var value = num.toString();
+            if (!allowKey(undefined, value)) {
+                return;
+            }
+            input.value = value;
+            validate(value);
+        },
+    };
+    return mask;
 }
 //# sourceMappingURL=number.js.map
 
 function inputMaskDouble(input, options) {
-    inputMaskNumber(input, options);
+    return inputMaskNumber(input, options);
 }
 //# sourceMappingURL=double.js.map
 
@@ -539,7 +675,7 @@ function inputMaskInteger(input, options) {
         noNegative: false
     };
     options.noDot = true;
-    inputMaskNumber(input, options);
+    return inputMaskNumber(input, options);
 }
 //# sourceMappingURL=integer.js.map
 
@@ -554,7 +690,31 @@ var InputMaskSignedTimeSpan = (function (_super) {
         _this.options = options || {};
         return _this;
     }
-    InputMaskSignedTimeSpan.prototype.validate = function (keyCode, buf, fields) {
+    InputMaskSignedTimeSpan.prototype.setValue = function (positive, days, hours, minutes) {
+        var newFields = cloneFields(this.fields);
+        newFields.s.buf = (positive ? "+" : "-").split("");
+        newFields.d.buf = (days % 10).toString().split("");
+        newFields.hh.buf = (Math.floor(hours / 10).toString() + (hours % 10).toString()).split("");
+        newFields.mm.buf = (Math.floor(minutes / 10).toString() + (minutes % 10).toString()).split("");
+        this.updateByFields(newFields);
+    };
+    InputMaskSignedTimeSpan.prototype.getValue = function () {
+        var positive = (this.fields.s.buf[0] == "+" ? true : false);
+        var days = parseInt(this.fields.d.buf.join(""));
+        if (isNaN(days)) {
+            return undefined;
+        }
+        var hours = parseInt(this.fields.hh.buf.join(""));
+        if (isNaN(hours)) {
+            return undefined;
+        }
+        var minutes = parseInt(this.fields.mm.buf.join(""));
+        if (isNaN(minutes)) {
+            return undefined;
+        }
+        return { positive: positive, days: days, hours: hours, minutes: minutes };
+    };
+    InputMaskSignedTimeSpan.prototype.validateKey = function (keyCode) {
         var ch = String.fromCharCode(keyCode);
         if (this.pos == 0 && !isSign(keyCode)) {
             return false;
@@ -568,9 +728,20 @@ var InputMaskSignedTimeSpan = (function (_super) {
             !isDigit(keyCode)) {
             return false;
         }
+        return true;
+    };
+    InputMaskSignedTimeSpan.prototype.validateBuf = function (buf, fields) {
         var fullFields = 0;
+        var s = fields.s.buf;
+        if (s[0] != "+" && s[0] != "-") {
+            return false;
+        }
         var d = fields.d.buf;
         if (d[0]) {
+            var num = parseInt(d[0]);
+            if (isNaN(num)) {
+                return false;
+            }
             ++fullFields;
         }
         var hh = fields.hh.buf;
@@ -595,6 +766,16 @@ var InputMaskSignedTimeSpan = (function (_super) {
         }
         return true;
     };
+    InputMaskSignedTimeSpan.prototype.checkComplete = function (buf, fields) {
+        var s = fields.s.buf;
+        var d = fields.d.buf;
+        var hh = fields.hh.buf;
+        var mm = fields.mm.buf;
+        if (s[0] && d[0] && hh[0] && hh[1] && mm[0] && mm[1]) {
+            return true;
+        }
+        return false;
+    };
     return InputMaskSignedTimeSpan;
 }(InputMaskBase));
 
@@ -617,13 +798,12 @@ function create(type, element, options) {
         return inputMaskInteger(element, options);
     }
     else if (type == "double") {
-        return inputMaskDouble(element);
+        return inputMaskDouble(element, options);
     }
     else {
         throw new Error("Unknown inputMask type: " + type);
     }
 }
-//# sourceMappingURL=index.js.map
 
 export { create };
 //# sourceMappingURL=input-mask.es6.js.map

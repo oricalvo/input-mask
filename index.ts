@@ -22,7 +22,7 @@ export function create(type, element, options) {
         return inputMaskInteger(element, options);
     }
     else if(type == "double") {
-        return inputMaskDouble(element);
+        return inputMaskDouble(element, options);
     }
     else {
         throw new Error("Unknown inputMask type: " + type);

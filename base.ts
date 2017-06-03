@@ -13,6 +13,8 @@ export abstract class InputMaskBase {
     max_pos: number;
     buf: any[];
     fields: Fields;
+    isValid: boolean;
+    isComplete: boolean;
 
     constructor(input, pattern, fieldsOptions?: FieldsOptions) {
         this.input = input;
@@ -23,6 +25,8 @@ export abstract class InputMaskBase {
         this.max_pos = this.pattern && this.pattern.length;
         this.fields = info.fields;
         this.buf = info.buf;
+        this.isComplete = false;
+        this.isValid = false;
 
         this.input.addEventListener("keydown", this.onKeyDown.bind(this));
         this.input.addEventListener("keypress", this.onKeyPress.bind(this));
@@ -95,9 +99,10 @@ export abstract class InputMaskBase {
                     //
                     //  Call validate and ignore return value
                     //  We allow backspace for invalid value
-                    //  We still need to call "validate" since it may change the input apearance (CSS)
+                    //  We still need to call "validate" since it may change the input appearance (CSS)
                     //
-                    this.validate(e.which, newBuf, newFields);
+                    this.handleValidation(e.which, newBuf, newFields);
+
                     this.update(newBuf, newFields);
                 }
 
@@ -106,6 +111,25 @@ export abstract class InputMaskBase {
                 }
             }, 0);
         }
+    }
+
+    handleValidation(keyCode: number, buf: string[], fields: Fields) {
+        this.isValid = false;
+        this.isComplete = false;
+
+        if(keyCode) {
+            if (!this.validateKey(keyCode)) {
+                return false;
+            }
+        }
+
+        if(!this.validateBuf(buf, fields)) {
+            return false;
+        }
+
+        this.isValid = true;
+
+        this.isComplete = this.checkComplete(buf, fields);
     }
 
     canType(pos) {
@@ -134,16 +158,21 @@ export abstract class InputMaskBase {
         const newBuf = cloneBuf(this.buf, this.pos, ch);
         const newFields = cloneFieldsByPos(this.fields, this.pos, ch);
 
-        if (this.validate(keyCode, newBuf, newFields)) {
-            setTimeout(() => {
-                this.update(newBuf, newFields);
-
-                this.next();
-            }, 0);
+        this.handleValidation(keyCode, newBuf, newFields);
+        if(!this.isValid) {
+            return;
         }
+
+        setTimeout(() => {
+            this.update(newBuf, newFields);
+
+            this.next();
+        }, 0);
     }
 
-    abstract validate(keyCode: number, buf: string[], fields: Fields);
+    abstract validateKey(keyCode: number);
+    abstract validateBuf(buf: string[], fields: Fields);
+    abstract checkComplete(buf: string[], fields: Fields);
 
     onFocus(e) {
         setTimeout(() => {
@@ -172,6 +201,11 @@ export abstract class InputMaskBase {
             const field = newFields[key];
 
             copyArray(field.buf, 0, field.buf.length, newBuf, field.begin);
+        }
+
+        this.handleValidation(undefined, newBuf, newFields);
+        if(!this.isValid) {
+            return;
         }
 
         this.update(newBuf, newFields);

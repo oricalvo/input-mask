@@ -8,5 +8,5 @@ export function inputMaskInteger(input, options?: NumberOptions) {
 
     options.noDot = true;
 
-    inputMaskNumber(input, options);
+    return inputMaskNumber(input, options);
 }
